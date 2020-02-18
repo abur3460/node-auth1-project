@@ -1,19 +1,50 @@
 
 const express = require("express");
-const server = express();
+const helmet = require("helmet");
+const cors = require("cors");
+const session = require("express-session"); // install
+const KnexSessionStore = require("connect-session-knex")(session);
 
-server.use(express.json());
+const dbConnection = require("./database/db-config.js");
 
 const authRouter = require("./auth/auth-router.js");
-const usersRouter = require("./users/users-router");
+const usersRouter = require("./users/users-router.js");
+
+const server = express();
+
+const sessionConfig = {
+  name: "cookieMonster",
+  // secret is used for cookie encryption
+  secret: process.env.SESSION_SECRET || "secrets are for everyone",
+  cookie: {
+    maxAge: 1000 * 60 * 10, // 10 minutes in ms
+    secure: false, // set to true in production, only send cookies over HTTPS
+    httpOnly: true // JS cannot access the cookies on the browser
+  },
+  resave: false,
+  saveUninitialized: true, // read about it for GDPR compliance
+  store: new KnexSessionStore({
+    knex: dbConnection,
+    tablename: "sessions",
+    sidfieldname: "sid",
+    createtable: true,
+    clearInterval: 60000
+  })
+};
+
+server.use(helmet());
+server.use(session(sessionConfig)); // turn on sessions
+server.use(express.json());
+server.use(cors());
+
+server.use("/api/auth", authRouter);
+server.use("/api/users", usersRouter);
+
 
 server.get("/", (req, res) => {
   res.json({
     message: "Successfully Connected"
   });
 });
-
-server.use("/api/auth", authRouter);
-server.use("/api/users", usersRouter);
 module.exports = server;
 

@@ -6,7 +6,7 @@ const Users = require("../database/userModel.js");
 // /api/auth
 router.post("/register", (req, res) => {
   let user = req.body;
-  const hash = bcrypt.hashSync(user.password, 10);
+  const hash = bcrypt.hashSync(user.password, 10); 
   user.password = hash;
 
   Users.add(user)
@@ -25,6 +25,9 @@ router.post("/login", (req, res) => {
     .first()
     .then(user => {
       if (user && bcrypt.compareSync(password, user.password)) {
+        req.session.loggedIn = true; // used in restricted middleware
+        req.session.userId = user.id; // in case we need the user id later
+
         res.status(200).json({
           message: `Welcome ${user.username}!`
         });
@@ -37,5 +40,20 @@ router.post("/login", (req, res) => {
     });
 });
 
+router.get("/logout", (req, res) => {
+  if (req.session) {
+    req.session.destroy(err => {
+      if (err) {
+        res.status(500).json({
+          you: "error!"
+        });
+      } else {
+        res.status(200).json({ bye: "thanks for coming" });
+      }
+    });
+  } else {
+    res.status(204);
+  }
+});
 
 module.exports = router;
